@@ -5,6 +5,7 @@ import torch
 import numpy as np
 
 config = ReformerConfig.from_pretrained("google/reformer-crime-and-punishment")
+config.random_buckets = True
 # config.num_hashes = 8
 # config.attn_layers = ["lsh", "lsh", "lsh", "lsh", "lsh", "lsh"]
 # bp()
@@ -71,11 +72,11 @@ chunk_len = config.local_attn_chunk_length
 
 def set_chunk_length(model, length):
     for layer in model.reformer.encoder.layers:
-        layer.attention.self_attention.chunk_length = length
+        # layer.attention.self_attention.chunk_length = length
         # if isinstance(layer.attention.self_attention, LSHSelfAttention):
         #     layer.attention.self_attention.chunk_length = length
-        # if isinstance(layer.attention.self_attention, LocalSelfAttention):
-        #     layer.attention.self_attention.chunk_length = length
+        if isinstance(layer.attention.self_attention, LocalSelfAttention):
+            layer.attention.self_attention.chunk_length = length
 
 for input_raw in long_inputs_lst:
     inputs = tok(input_raw, return_tensors="pt")

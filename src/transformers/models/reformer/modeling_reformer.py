@@ -342,6 +342,7 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
         self.hash_seed = config.hash_seed
         self.is_decoder = config.is_decoder
         self.max_position_embeddings = config.max_position_embeddings
+        self.random_buckets = True if hasattr(config, "random_buckets") and config.random_buckets else False
 
         self.dropout = config.lsh_attention_probs_dropout_prob
 
@@ -696,11 +697,15 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
         # create a random self.attention_head_size x num_hashes x num_buckets/2
         random_rotations = torch.randn(rotations_shape, device=vectors.device, dtype=vectors.dtype)
         # Output dim: Batch_Size x Num_Attn_Heads x Num_Hashes x Seq_Len x Num_Buckets/2
+        seq_len = vectors.shape[-2]
         rotated_vectors = torch.einsum("bmtd,mdhr->bmhtr", vectors, random_rotations)
 
         if isinstance(self.num_buckets, int) or len(self.num_buckets) == 1:
             rotated_vectors = torch.cat([rotated_vectors, -rotated_vectors], dim=-1)
-            buckets = torch.argmax(rotated_vectors, dim=-1)
+            if self.random_buckets:
+                buckets = torch.randint(rotation_size, (batch_size, self.num_attention_heads, num_hashes, seq_len))
+            else:
+                buckets = torch.argmax(rotated_vectors, dim=-1)
         else:
             # Get the buckets for them and combine.
             buckets, cur_sum, cur_product = None, 0, 1
@@ -709,9 +714,17 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
                 cur_sum = cur_sum + bucket_factor // 2
                 rotated_vectors_factor = torch.cat([rotated_vectors_factor, -rotated_vectors_factor], dim=-1)
                 if buckets is None:
-                    buckets = torch.argmax(rotated_vectors_factor, dim=-1)
+                    if self.random_buckets:
+                        print("random bucket id")
+                        buckets = torch.randint(bucket_factor, (batch_size, self.num_attention_heads, num_hashes, seq_len))
+                    else:
+                        print("bucket from LSH")
+                        buckets = torch.argmax(rotated_vectors_factor, dim=-1)
                 else:
-                    buckets = buckets + (cur_product * torch.argmax(rotated_vectors_factor, dim=-1))
+                    if self.random_buckets:
+                        buckets = buckets + (cur_product * torch.randint(bucket_factor, (batch_size, self.num_attention_heads, num_hashes, seq_len)))
+                    else:
+                        buckets = buckets + (cur_product * torch.argmax(rotated_vectors_factor, dim=-1))
 
                 cur_product = cur_product * bucket_factor
 
