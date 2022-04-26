@@ -30,7 +30,7 @@ tok = ReformerTokenizer.from_pretrained("google/reformer-crime-and-punishment")
 # loss = outputs.loss
 # logits = outputs.logits
 
-inputs_lst = [
+short_inputs_lst = [
     "This evening, however, on coming out into the street, he became acutely aware of his fears.", 
     "On an exceptionally hot evening early in July a young man came out of the garret in which he lodged in S. Place and walked slowly, as though in hesitation, towards K. bridge.", 
     "The heat in the street was terrible: and the airlessness, the bustle and the plaster, scaffolding, bricks, and dust all about him, and that special Petersburg stench, so familiar to all who are unable to get out of town in summer--all worked painfully upon the young man’s already overwrought nerves.",
