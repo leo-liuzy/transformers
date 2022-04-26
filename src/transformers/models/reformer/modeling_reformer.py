@@ -24,6 +24,7 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torch.autograd.function import Function
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
@@ -43,6 +44,7 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_reformer import ReformerConfig
+from pdb import set_trace as bp
 
 
 logger = logging.get_logger(__name__)
@@ -444,6 +446,8 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
                 value_vectors, self.num_attention_heads, self.attention_head_size
             )
 
+        # prefix_shape = query_key_vectors.shape[:-1]
+        # query_key_vectors_reshaped = query_key_vectors.view(-1, self.attention_head_size)
         # cache buckets for next incremental decoding
         if do_cached_attention and past_buckets is None and key_value_hidden_states.shape[1] >= self.chunk_length:
             buckets = self._hash_vectors(query_key_vectors, num_hashes, attention_mask)
@@ -457,7 +461,6 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
         assert (
             value_vectors.shape[-1] == self.attention_head_size
         ), f"last dim of value_vectors is {value_vectors.shape[-1]} but should be {self.attention_head_size}."
-
         do_standard_self_attention = (sequence_length <= self.chunk_length) or (
             use_cache and past_buckets_states[1] is not None
         )
@@ -478,7 +481,62 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
             assert (
                 int(buckets.shape[-1]) == num_hashes * sequence_length
             ), f"last dim of buckets is {buckets.shape[-1]}, but should be {num_hashes * sequence_length}"
+            # attention_mask_reshape = attention_mask.unsqueeze(-2)
+            # # calculate dot between all query and keys
+            # q = query_key_vectors
+            # k = self._len_and_dim_norm(query_key_vectors)
+            # dot_product = torch.matmul(q, k.transpose(-1, -2)) # if I use q instead, the dot product are too big and softmax basically produce 1-hot
+            
+            # # ignore padding and diagonal
+            # for i in range(sequence_length):
+            #     dot_product[..., i, i] -= 1e5  # disregard dot product with "self"
+            # dot_product = torch.where(attention_mask_reshape.unsqueeze(-1).bool(), dot_product, torch.tensor(-float("inf"))) # also mask padding
+            # dot_product = torch.where(attention_mask_reshape.unsqueeze(-2).bool(), dot_product, torch.tensor(-float("inf"))) # also mask padding
+            # softmax_dot_product = F.softmax(dot_product, dim=-1)
+            # sorted_softmax_score, sorted_softmax_idx = torch.sort(softmax_dot_product, dim=-1, descending=True)
 
+            # # count hash collision (ignore padding and diagonal)
+            # buckets_tmp = buckets.view(len(query_key_vectors), self.num_attention_heads, num_hashes, -1)
+            # buckets_match = buckets_tmp.unsqueeze(-1) == buckets_tmp.unsqueeze(-2)
+            # for i in range(sequence_length):
+            #     buckets_match[..., i, i] = False
+            # buckets_match = torch.where(attention_mask_reshape.unsqueeze(-2).unsqueeze(-1).bool(), buckets_match, False)
+            # buckets_match = torch.where(attention_mask_reshape.unsqueeze(-2).unsqueeze(-2).bool(), buckets_match, False)
+            # buckets_match_count = torch.sum(buckets_match.int(), dim=-3)
+            # sorted_count, sorted_idx_by_count = torch.sort(buckets_match_count, dim=-1, descending=True)
+
+            # # reshape vectors, useful for calculating recall
+            # sorted_softmax_idx_reshaped = sorted_softmax_idx.view(-1, sequence_length)
+            # sorted_idx_by_count_reshaped = sorted_idx_by_count.view(-1, sequence_length)
+            # sorted_count_mask_reshaped = sorted_count.view(-1, sequence_length)
+            
+            # k = 1
+            # gold_topk_threshold = 32
+            # topk_softmax_score = sorted_softmax_score[..., :gold_topk_threshold]
+            # topk_index_gold = sorted_softmax_idx_reshaped[..., :gold_topk_threshold]
+            # topk_softmax_score_sum = topk_softmax_score.sum(-1)
+            # num_topk_softmax_score_sum = topk_softmax_score_sum[~topk_softmax_score_sum.isnan()]
+            # print(f"softmax_gold@({gold_topk_threshold}): {num_topk_softmax_score_sum.mean(): .2f} +/- {num_topk_softmax_score_sum.std(): .2f}")
+            # while k <= sequence_length:
+            #     # calculate the weight coverage by gold and LSH 
+            #     topk_sorted_count = sorted_count[..., :k]
+            #     print(f"k: {k}")
+            #     # bp()
+            #     topk_softmax_by_lsh = torch.gather(softmax_dot_product, dim=-1, index=sorted_idx_by_count[..., :k])
+            #     # if we want to have weighted sum over prob covered by lsh, use the following 2 line.
+            #     # topk_softmax_by_lsh *= topk_sorted_count.float() # mask out probabilty where counts are zero
+            #     # topk_softmax_by_lsh_sum = topk_softmax_by_lsh.sum(-1) / num_hashes
+            #     # if we want to have prob covered by lsh(ignore num of hash collisions between query i and key j), use the following 2 line.
+            #     topk_softmax_by_lsh *= (topk_sorted_count != 0).float() # mask out probabilty where counts are zero
+            #     topk_softmax_by_lsh_sum = topk_softmax_by_lsh.sum(-1)
+            #     num_topk_softmax_by_lsh_sum = topk_softmax_by_lsh_sum[~topk_softmax_by_lsh_sum.isnan()]
+            #     print(f"softmax_lsh_covered: {num_topk_softmax_by_lsh_sum.mean(): .2f} +/- {num_topk_softmax_by_lsh_sum.std(): .2f}")
+            #     print(f"softmax_lsh_covered/softmax_gold@({gold_topk_threshold}): {(num_topk_softmax_by_lsh_sum / num_topk_softmax_score_sum).mean(): .2f} +/- {(num_topk_softmax_by_lsh_sum / num_topk_softmax_score_sum).std(): .2f}")
+            #     topk_index_lsh = sorted_idx_by_count_reshaped[..., :k]
+
+            #     topk_overlaps = torch.tensor([len(np.intersect1d(topk_index_gold[i], topk_index_lsh[i][sorted_count_mask_reshaped[i, :k] != 0])) for i in range(len(topk_index_gold))])
+            #     print(f"topk recall@({gold_topk_threshold}): {(topk_overlaps / gold_topk_threshold).mean(): .2f} +/- {(topk_overlaps / gold_topk_threshold).std(): .2f}")
+            #     k *= 2
             sorted_bucket_idx, undo_sorted_bucket_idx = self._get_sorted_bucket_idx_and_undo_sorted_bucket_idx(
                 sequence_length, buckets, num_hashes
             )
@@ -1598,6 +1656,7 @@ class _ReversibleFunction(Function):
         for layer_id, (layer, layer_head_mask) in enumerate(zip(layers, head_mask)):
             if output_hidden_states is True:
                 all_hidden_states.append(hidden_states)
+            # print(f"Layer: {layer_id}")
 
             layer_outputs = layer(
                 prev_attn_output=attn_output,
