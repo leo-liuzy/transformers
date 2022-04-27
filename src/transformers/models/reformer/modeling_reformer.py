@@ -342,6 +342,7 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
         self.hash_seed = config.hash_seed
         self.is_decoder = config.is_decoder
         self.max_position_embeddings = config.max_position_embeddings
+        # (Leo): adding an additional flag to disable LSH. Instead, assign each input vector to a random bucket
         self.random_buckets = True if hasattr(config, "random_buckets") and config.random_buckets else False
 
         self.dropout = config.lsh_attention_probs_dropout_prob
@@ -373,6 +374,7 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
         output_attentions=False,
         **kwargs,
     ):
+        # print(f"LSHSelfAttention, chunk_length={self.chunk_length}")
         sequence_length = hidden_states.shape[1]
         batch_size = hidden_states.shape[0]
 
@@ -474,6 +476,7 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
             # use cached buckets for backprop only
             if buckets is None:
                 # hash query key vectors into buckets
+                # print(f"Num_hash: {num_hashes}")
                 buckets = self._hash_vectors(query_key_vectors, num_hashes, attention_mask)
             else:
                 # make sure buckets has correct shape for LSH attention
@@ -715,10 +718,10 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
                 rotated_vectors_factor = torch.cat([rotated_vectors_factor, -rotated_vectors_factor], dim=-1)
                 if buckets is None:
                     if self.random_buckets:
-                        print("random bucket id")
+                        # print("random bucket id")
                         buckets = torch.randint(bucket_factor, (batch_size, self.num_attention_heads, num_hashes, seq_len))
                     else:
-                        print("bucket from LSH")
+                        # print("bucket from LSH")
                         buckets = torch.argmax(rotated_vectors_factor, dim=-1)
                 else:
                     if self.random_buckets:
@@ -1120,6 +1123,7 @@ class LocalSelfAttention(nn.Module, EfficientAttentionMixin):
         output_attentions=False,
         **kwargs,
     ):
+        # print(f"LocalSelfAttention, chunk_length={self.chunk_length}")
         sequence_length = hidden_states.shape[1]
         batch_size = hidden_states.shape[0]
 
@@ -1477,6 +1481,10 @@ class ReformerLayer(nn.Module):
         self.attention = ReformerAttention(config, layer_id)
         # dropout requires to have the same
         # seed for forward and backward pass
+        self.remove_attention_type = None
+        if hasattr(config, "remove_attention_type"):
+            self.remove_attention_type = config.remove_attention_type
+            # print(f"self.remove_attention_type: {self.remove_attention_type}")
         self.attention_seed = None
         self.feed_forward_seed = None
 
@@ -1550,7 +1558,17 @@ class ReformerLayer(nn.Module):
 
             # Implementation of RevNet (see Fig. 6 in https://towardsdatascience.com/illustrating-the-reformer-393575ac6ba0)
             # Y_1 = X_1 + f(X_2)
-            attn_output = prev_attn_output + attn_output
+            if self.remove_attention_type == "local":
+                weight = int(not isinstance(self.attention.self_attention, LocalSelfAttention))
+            elif self.remove_attention_type == "lsh":
+                weight = int(not isinstance(self.attention.self_attention, LSHSelfAttention))
+            elif self.remove_attention_type == "all":
+                weight = 0
+            else:
+                assert self.remove_attention_type == 'none' or self.remove_attention_type is None
+                weight = 1
+            # print(f"{self.attention.self_attention.__class__}: Y_1 = X_1 + f(X_2) * {weight}")
+            attn_output = prev_attn_output + attn_output * weight
 
             # free memory
             del prev_attn_output
@@ -1561,6 +1579,7 @@ class ReformerLayer(nn.Module):
             if self.training:
                 self._init_feed_forward_seed()
             # Y_2 = X_2 + g(Y_1)
+            # hidden_states = hidden_states + self.feed_forward(attn_output)
             hidden_states = hidden_states + self.feed_forward(attn_output)
 
         return ReformerOutput(
