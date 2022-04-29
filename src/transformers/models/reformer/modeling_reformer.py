@@ -1481,7 +1481,7 @@ class ReformerLayer(nn.Module):
             # Y_1 = X_1 + f(X_2)
             weight = 1 if isinstance(self.attention.self_attention, LSHSelfAttention) else 1
             print(f"{self.attention.self_attention.__class__}: Y_1 = X_1 + f(X_2) * {weight}")
-            attn_output = prev_attn_output + attn_output
+            attn_output = prev_attn_output + attn_output * weight
 
             # free memory
             del prev_attn_output
