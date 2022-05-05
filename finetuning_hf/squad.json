@@ -18,10 +18,11 @@
   "do_eval": true,
   "evaluation_strategy": "steps",
   "gradient_accumulation_steps": 1,
-  "eval_steps": 50,
+  "eval_steps": 200,
   "max_grad_norm": 1.0,
   "lr_scheduler_type": "polynomial",
-  "save_strategy": "no",
+  "logging_steps": 200,
+  "save_steps": 200,
   "seed": 4,
   "fp16": true,
   "fp16_full_eval": true
