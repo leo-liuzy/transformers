@@ -321,6 +321,7 @@ def main(args):
     model_args, data_args, training_args = parser.parse_json_file(
         json_file=os.path.join(hyper_params['output_dir'], f'{args.task}.json')
     )
+    training_args.local_rank = args.local_rank
 
     if (
         os.path.exists(training_args.output_dir)
@@ -704,6 +705,7 @@ if __name__ == "__main__":
     parser.add_argument('-finetune_config_dir', type=str, required=True)
     parser.add_argument('-finetune_output_dir', type=str, required=True)
     parser.add_argument('-overwrite_pytorch_dir', action="store_true")
+    parser.add_argument('--local_rank', type=int, default=-1)
     args = parser.parse_args()
 
     output_dir, id = main(args)

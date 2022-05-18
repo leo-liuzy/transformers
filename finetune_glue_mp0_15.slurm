@@ -35,8 +35,8 @@ trap_handler () {
 trap 'trap_handler USR1' USR1
 trap 'trap_handler TERM' TERM
 
-task=$task
-# task=sst2
+# task=$task
+task=rte
 config_dir=/private/home/zeyuliu/masking_strategy/transformers/finetuning_hf
 
 masking=mp0.15
@@ -46,9 +46,17 @@ date
 echo $masking
 echo $task
 
+# python -m torch.distributed.launch \
+    # --nproc_per_node 2 roberta_run_glue.py \
+    # -task $task \
+    # -masking $masking \
+    # -finetune_config_dir $config_dir \
+    # -finetune_output_dir results/roberta-base-distributed \
+    # -path_to_pretrained_checkpoint $model_path
+
 python roberta_run_glue.py \
-  -task $task \
-  -masking $masking \
-  -finetune_config_dir $config_dir \
-  -finetune_output_dir results/roberta-base \
-  -path_to_pretrained_checkpoint $model_path
+    -task $task \
+    -masking $masking \
+    -finetune_config_dir $config_dir \
+    -finetune_output_dir results/roberta-base \
+    -path_to_pretrained_checkpoint $model_path
