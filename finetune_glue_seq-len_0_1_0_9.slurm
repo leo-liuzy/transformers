@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=finetune.roberta.
+#SBATCH --job-name=finetune.roberta
 #SBATCH --output=/private/home/zeyuliu/masking_strategy/transformers/slurm_output/finetune.stdout.%j
 #SBATCH --error=/private/home/zeyuliu/masking_strategy/transformers/slurm_output/finetune.stderr.%j
 #SBATCH --nodes=1
@@ -37,8 +37,8 @@ trap 'trap_handler TERM' TERM
 task=$task
 config_dir=/private/home/zeyuliu/masking_strategy/transformers/finetuning_hf_8gpu
 
-masking=mp0.4
-model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/cache/roberta.base.faststatsync.me_fp16.cmpltsents.mp0.4.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf4.mu500000.s1.ngpu64/checkpoint_last.pt
+masking=seq-len_0_1_0_9
+model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.faststatsync.me_fp16.cmpltsents.seq-len.slgeos.slb0.1-0.9.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf4.mu500000.s1.ngpu64/checkpoint_11_100000.pt
 
 date 
 echo $masking

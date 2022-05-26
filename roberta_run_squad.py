@@ -515,7 +515,7 @@ def main(args):
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
-
+    
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, FinetuneTrainingArguments))
     hyper_params = json.load(open(f'{args.finetune_config_dir}/{args.task}.json', 'r'))
     pretrained_checkpoint_dir_path = os.path.dirname(args.path_to_pretrained_checkpoint)
@@ -535,7 +535,10 @@ def main(args):
         # model_name = sorted([i for i in os.listdir(hyper_params['model_name_or_path']) if i.startswith('checkpoint')])[::-1][0]
         logger.info(f'converting fairseq model `{pretrained_checkpoint_name}` to pytorch model...')
         logger.info(f'Saving pytorch model to `{pytorch_dir_path}`...')
-        os.symlink(args.path_to_pretrained_checkpoint, os.path.join(pretrained_checkpoint_dir_path, 'model.pt'))
+        dummy_file = os.path.join(pretrained_checkpoint_dir_path, 'model.pt')
+        if os.path.exists(dummy_file):
+            os.remove(dummy_file)
+        os.symlink(args.path_to_pretrained_checkpoint, dummy_file)
         # shutil.copy(os.path.join(hyper_params['model_name_or_path'], model_name), os.path.join(hyper_params['model_name_or_path'], 'model.pt'))
         convert_roberta_checkpoint_to_pytorch(
             roberta_checkpoint_path=pretrained_checkpoint_dir_path,
@@ -1007,7 +1010,7 @@ def save_wandb_results(output_dir, id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='reberta glue')
     parser.add_argument('-task', type=str, required=True)
-    parser.add_argument('-masking', type=str, required=True, choices=['mp0.15', 'mp0.4', 'seq-len'])
+    parser.add_argument('-masking', type=str, required=True, choices=['mp0.15', 'mp0.4', 'mp0.5', 'seq-len', 'seq-len_0_1_0_9'])
     parser.add_argument('-path_to_pretrained_checkpoint', type=str, required=True)
     parser.add_argument('-finetune_config_dir', type=str, required=True)
     parser.add_argument('-finetune_output_dir', type=str, required=True)
