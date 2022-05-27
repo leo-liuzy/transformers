@@ -34,7 +34,7 @@ trap_handler () {
 trap 'trap_handler USR1' USR1
 trap 'trap_handler TERM' TERM
 
-task=$task
+task=squad
 config_dir=/private/home/zeyuliu/masking_strategy/transformers/finetuning_hf_8gpu
 
 masking=seq-len
@@ -44,7 +44,7 @@ date
 echo $masking
 echo $task
 
-python roberta_run_glue.py \
+python roberta_run_squad.py \
   -task $task \
   -masking $masking \
   -finetune_config_dir $config_dir \
