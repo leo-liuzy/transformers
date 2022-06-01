@@ -703,7 +703,7 @@ def save_wandb_results(output_dir, id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='reberta glue')
     parser.add_argument('-task', type=str, required=True)
-    parser.add_argument('-masking', type=str, required=True, choices=['mp0.15', 'mp0.4', 'mp0.5', 'seq-len', 'seq-len_0_1_0_9', 'seq-len_0_2_0_8'])
+    parser.add_argument('-masking', type=str, required=True, choices=['mp0.15', 'mp0.4', 'mp0.5', 'seq-len', 'seq-len_0_1_0_9', 'seq-len_0_2_0_8', 'seq-len_0_3_0_7'])
     parser.add_argument('-path_to_pretrained_checkpoint', type=str, required=True)
     parser.add_argument('-finetune_config_dir', type=str, required=True)
     parser.add_argument('-finetune_output_dir', type=str, required=True)
