@@ -38,7 +38,7 @@ task=$task
 config_dir=/private/home/zeyuliu/masking_strategy/transformers/finetuning_hf_8gpu_eval_per_epoch
 
 masking=seq-len_0_2_0_8
-model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.faststatsync.me_fp16.cmpltsents.seq-len.slgeos.slb0.2-0.8.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf4.mu500000.s1.ngpu64/checkpoint_11_100000.pt
+model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.faststatsync.me_fp16.cmpltsents.seq-len.slgeos.slb0.2-0.8.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf4.mu500000.s1.ngpu64/checkpoint_21_200000.pt
 
 date 
 echo $masking

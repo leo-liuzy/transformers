@@ -17,6 +17,7 @@
   "do_eval": true,
   "do_predict": true,
   "evaluation_strategy": "epoch",
+  "save_strategy": "epoch",
   "gradient_accumulation_steps": 1,
   "max_grad_norm": 1.0,
   "lr_scheduler_type": "polynomial",
