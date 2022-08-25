@@ -38,20 +38,28 @@ task=$task
 # task=rte
 config_dir=/private/home/zeyuliu/masking_strategy/transformers/finetuning_hf_8gpu_eval_per_epoch
 
-masking=mp0.15
-model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.faststatsync.me_fp16.cmpltsents.mp0.15.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf4.mu500000.s1.ngpu64/checkpoint_52_500000.pt
+masking=mpr009_021
+model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.faststatsync.me_fp16.cmpltsents.mpr0.09-0.21.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf2.mu500000.s1.ngpu128/checkpoint_52_500000.pt
 
 date 
 echo $masking
 echo $task
 echo $model_path
 
-python roberta_run_glue.py \
-    --task $task \
-    --masking $masking \
-    --finetune_config_dir $config_dir \
-    --finetune_output_dir results/roberta-base-8gpu \
-    --path_to_pretrained_checkpoint $model_path
+for lr in 2e-5 3e-5 # 1e-5 
+do 
+  for bs in 2 4
+  do 
+    python roberta_run_glue.py \
+        --task $task \
+        --masking $masking \
+        --finetune_config_dir $config_dir \
+        --finetune_output_dir results/roberta-base-8gpu \
+        --path_to_pretrained_checkpoint $model_path \
+        --learning_rate $lr \
+        --per_device_train_batch_size $bs
+  done
+done
 
 # python roberta_run_glue.py \
 #   -task sst2 \

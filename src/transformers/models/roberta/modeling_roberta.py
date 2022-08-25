@@ -45,6 +45,7 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_roberta import RobertaConfig
+from pdb import set_trace as bp
 
 
 logger = logging.get_logger(__name__)
@@ -291,10 +292,13 @@ class RobertaSelfOutput(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
+        # bp()
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
+        
+            
 
 
 # Copied from transformers.models.bert.modeling_bert.BertAttention with Bert->Roberta
@@ -520,6 +524,7 @@ class RobertaEncoder(nn.Module):
                     encoder_attention_mask,
                 )
             else:
+                # bp()
                 layer_outputs = layer_module(
                     hidden_states,
                     attention_mask,
@@ -1090,7 +1095,8 @@ class RobertaForMaskedLM(RobertaPreTrainedModel):
             Used to hide legacy arguments that have been deprecated.
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
+        # from pdb import set_trace as bp
+        # bp()
         outputs = self.roberta(
             input_ids,
             attention_mask=attention_mask,

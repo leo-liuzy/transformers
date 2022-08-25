@@ -23,6 +23,7 @@ from transformers import (
     TrainingArguments,
     default_data_collator,
     set_seed,
+    RobertaTokenizer,
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaForSequenceClassification,
@@ -161,16 +162,19 @@ class FinetuneTrainingArguments(TrainingArguments):
 
 
 def convert_roberta_checkpoint_to_pytorch(
-    roberta_checkpoint_path: str, pytorch_dump_folder_path: str, classification_head: bool
+    roberta_checkpoint_path: str, pytorch_dump_folder_path: str, classification_head: bool, 
+    checkpoint_name: str = "model.pt",
 ):
     """
     Copy/paste/tweak roberta's weights to our BERT structure.
     """
     SAMPLE_TEXT = "Hello world! cécé herlolip"
 
-    roberta = FairseqRobertaModel.from_pretrained(roberta_checkpoint_path)
+    roberta = FairseqRobertaModel.from_pretrained(roberta_checkpoint_path, checkpoint_file=checkpoint_name)
     roberta.eval()  # disable dropout
     roberta_sent_encoder = roberta.model.encoder.sentence_encoder
+    roberta_mask_idx = roberta.model.encoder.dictionary.index("<mask>")
+    
     config = RobertaConfig(
         vocab_size=roberta_sent_encoder.embed_tokens.num_embeddings,
         hidden_size=roberta.model.args.encoder_embed_dim, #roberta.args.encoder_embed_dim,
@@ -188,13 +192,18 @@ def convert_roberta_checkpoint_to_pytorch(
     model = RobertaForSequenceClassification(config) if classification_head else RobertaForMaskedLM(config)
     model.eval()
 
+    hf_roberta_tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
+    hf_roberta_mask_idx = hf_roberta_tokenizer._convert_token_to_id("<mask>")
     # Now let's copy all the weights.
     # Embeddings
     model.roberta.embeddings.word_embeddings.weight = roberta_sent_encoder.embed_tokens.weight
+    # bp()
+    model.roberta.embeddings.word_embeddings.weight[hf_roberta_mask_idx].data = roberta_sent_encoder.embed_tokens.weight[roberta_mask_idx].data
     model.roberta.embeddings.position_embeddings.weight = roberta_sent_encoder.embed_positions.weight
     model.roberta.embeddings.token_type_embeddings.weight.data = torch.zeros_like(
         model.roberta.embeddings.token_type_embeddings.weight
     )  # just zero them out b/c RoBERTa doesn't use them.
+    
     # model.roberta.embeddings.LayerNorm.weight = roberta_sent_encoder.emb_layer_norm.weight
     # model.roberta.embeddings.LayerNorm.bias = roberta_sent_encoder.emb_layer_norm.bias
     # https://github.com/huggingface/transformers/issues/12670
@@ -291,12 +300,15 @@ def main(args):
     assert os.path.isfile(args.path_to_pretrained_checkpoint) and args.path_to_pretrained_checkpoint.endswith(".pt")
     pretrained_checkpoint_dir_path = os.path.dirname(args.path_to_pretrained_checkpoint)
     pretrained_checkpoint_name = os.path.basename(args.path_to_pretrained_checkpoint)
+    dummy_link_file_name = f'{args.task}.{pretrained_checkpoint_name}'
+    dummy_link_file_path = os.path.join(pretrained_checkpoint_dir_path, dummy_link_file_name)
     pytorch_dir_path = f"{pretrained_checkpoint_dir_path}/{pretrained_checkpoint_name.split('.')[0]}"
     os.makedirs(pytorch_dir_path, exist_ok=True)
     if args.overwrite_pytorch_dir:
         shutil.rmtree(pytorch_dir_path)
-        os.remove(os.path.join(pretrained_checkpoint_dir_path, 'model.pt'))
+        os.remove(dummy_link_file_path)
         os.makedirs(pytorch_dir_path, exist_ok=True)
+        
     hyper_params['model_name_or_path'] = pytorch_dir_path
     """
     convert models
@@ -305,18 +317,22 @@ def main(args):
         # model_name = sorted([i for i in os.listdir(hyper_params['model_name_or_path']) if i.startswith('checkpoint')])[::-1][0]
         logger.info(f'converting fairseq model `{pretrained_checkpoint_name}` to pytorch model...')
         logger.info(f'Saving pytorch model to `{pytorch_dir_path}`...')
-        dummy_file = os.path.join(pretrained_checkpoint_dir_path, 'model.pt')
-        if os.path.exists(dummy_file):
-            os.remove(dummy_file)
-        os.symlink(args.path_to_pretrained_checkpoint, dummy_file)
+        if os.path.exists(dummy_link_file_path):
+            os.remove(dummy_link_file_path)
+        os.symlink(args.path_to_pretrained_checkpoint, dummy_link_file_path)
         # shutil.copy(os.path.join(hyper_params['model_name_or_path'], model_name), os.path.join(hyper_params['model_name_or_path'], 'model.pt'))
         convert_roberta_checkpoint_to_pytorch(
             roberta_checkpoint_path=pretrained_checkpoint_dir_path,
             pytorch_dump_folder_path=hyper_params['model_name_or_path'],
-            classification_head=False
+            classification_head=False,
+            checkpoint_name=pretrained_checkpoint_name,
         )
     # bp()
     hyper_params['project_name'] = f'roberta_{args.masking}_{args.task}'
+    if args.learning_rate is not None:
+        hyper_params["learning_rate"] = args.learning_rate
+    if args.per_device_train_batch_size is not None:
+        hyper_params["per_device_train_batch_size"] = args.per_device_train_batch_size
     hyper_params['output_dir'] = f'{args.finetune_output_dir}/{args.masking}/{args.task}/lr{hyper_params["learning_rate"]}_B{hyper_params["per_device_train_batch_size"]}_E{hyper_params["num_train_epochs"]}'
     os.makedirs(hyper_params['output_dir'], exist_ok=True)
     with open(os.path.join(hyper_params['output_dir'], f'{args.task}.json'), 'w') as f:
@@ -702,13 +718,16 @@ def save_wandb_results(output_dir, id):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='reberta glue')
-    parser.add_argument('-task', type=str, required=True)
-    parser.add_argument('-masking', type=str, required=True, choices=['mp0.15', 'mp0.4', 'mp0.5', 'seq-len', 'seq-len_0_1_0_9', 'seq-len_0_2_0_8', 'seq-len_0_3_0_7'])
-    parser.add_argument('-path_to_pretrained_checkpoint', type=str, required=True)
-    parser.add_argument('-finetune_config_dir', type=str, required=True)
-    parser.add_argument('-finetune_output_dir', type=str, required=True)
-    parser.add_argument('-overwrite_pytorch_dir', action="store_true")
+    parser.add_argument('--task', type=str, required=True)
+    parser.add_argument('--masking', type=str, required=True, choices=['mp0.15', 'mpr009_021', 'mp0.2', 'mp0.4', 'mp0.5', 'seq-len', 'seq-len_0_1_0_9', 'seq-len_0_2_0_8', 'seq-len_0_3_0_7'])
+    parser.add_argument('--path_to_pretrained_checkpoint', type=str, required=True)
+    parser.add_argument('--finetune_config_dir', type=str, required=True)
+    parser.add_argument('--finetune_output_dir', type=str, required=True)
+    parser.add_argument('--overwrite_pytorch_dir', action="store_true")
     parser.add_argument('--local_rank', type=int, default=-1)
+    # changed for sweep
+    parser.add_argument('--learning_rate', type=float, default=None)
+    parser.add_argument('--per_device_train_batch_size', type=int, default=None)
     args = parser.parse_args()
 
     output_dir, id = main(args)

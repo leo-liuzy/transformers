@@ -21,7 +21,7 @@
   "gradient_accumulation_steps": 1,
   "max_grad_norm": 1.0,
   "lr_scheduler_type": "polynomial",
-  "seed": 4,
+  "seed": 3,
   "fp16": true,
   "fp16_full_eval": true
 }

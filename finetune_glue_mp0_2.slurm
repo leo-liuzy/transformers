@@ -35,10 +35,11 @@ trap 'trap_handler USR1' USR1
 trap 'trap_handler TERM' TERM
 
 task=$task
+# task=rte
 config_dir=/private/home/zeyuliu/masking_strategy/transformers/finetuning_hf_8gpu_eval_per_epoch
 
-masking=seq-len_0_1_0_9
-model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.faststatsync.me_fp16.cmpltsents.seq-len.slgeos.slb0.1-0.9.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf4.mu500000.s1.ngpu64/checkpoint_11_100000.pt
+masking=mp0.2
+model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.faststatsync.me_fp16.cmpltsents.mp0.2.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf2.mu500000.s1.ngpu128/checkpoint_52_500000.pt
 
 date 
 echo $masking
@@ -46,8 +47,15 @@ echo $task
 echo $model_path
 
 python roberta_run_glue.py \
-  --task $task \
-  --masking $masking \
-  --finetune_config_dir $config_dir \
-  --finetune_output_dir results/roberta-base-8gpu \
-  --path_to_pretrained_checkpoint $model_path
+    --task $task \
+    --masking $masking \
+    --finetune_config_dir $config_dir \
+    --finetune_output_dir results/roberta-base-8gpu \
+    --path_to_pretrained_checkpoint $model_path
+
+# python roberta_run_glue.py \
+#   -task sst2 \
+#   -masking mp0.15 \
+#   -finetune_config_dir /private/home/zeyuliu/masking_strategy/transformers/finetuning_hf_8gpu_eval_per_epoch \
+#   -finetune_output_dir results/roberta-base-8gpu \
+#   -path_to_pretrained_checkpoint /checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.faststatsync.me_fp16.cmpltsents.mp0.15.roberta_base.tps512.adam.fp16adam.b2_0.98.eps1e-06.cl0.0.lr0.0006.wu24000.dr0.1.atdr0.1.wd0.01.ms32.uf4.mu500000.s1.ngpu64/checkpoint_last.pt

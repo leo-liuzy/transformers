@@ -43,10 +43,11 @@ model_path=/checkpoint/zeyuliu/en_dense_lm/masking_strategies/roberta.base.fasts
 date 
 echo $masking
 echo $task
+echo $model_path
 
 python roberta_run_squad.py \
-  -task $task \
-  -masking $masking \
-  -finetune_config_dir $config_dir \
-  -finetune_output_dir results/roberta-base-8gpu \
-  -path_to_pretrained_checkpoint $model_path
+  --task $task \
+  --masking $masking \
+  --finetune_config_dir $config_dir \
+  --finetune_output_dir results/roberta-base-8gpu \
+  --path_to_pretrained_checkpoint $model_path

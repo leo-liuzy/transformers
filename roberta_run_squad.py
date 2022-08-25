@@ -520,11 +520,13 @@ def main(args):
     hyper_params = json.load(open(f'{args.finetune_config_dir}/{args.task}.json', 'r'))
     pretrained_checkpoint_dir_path = os.path.dirname(args.path_to_pretrained_checkpoint)
     pretrained_checkpoint_name = os.path.basename(args.path_to_pretrained_checkpoint)
+    dummy_link_file_name = f'squad.{pretrained_checkpoint_name}'
+    dummy_link_file_path = os.path.join(pretrained_checkpoint_dir_path, dummy_link_file_name)
     pytorch_dir_path = f"{pretrained_checkpoint_dir_path}/{pretrained_checkpoint_name.split('.')[0]}"
     os.makedirs(pytorch_dir_path, exist_ok=True)
     if args.overwrite_pytorch_dir:
         shutil.rmtree(pytorch_dir_path)
-        os.remove(os.path.join(pretrained_checkpoint_dir_path, 'model.pt'))
+        os.remove(dummy_link_file_path)
         os.makedirs(pytorch_dir_path, exist_ok=True)
     
     hyper_params['model_name_or_path'] = pytorch_dir_path
@@ -535,15 +537,15 @@ def main(args):
         # model_name = sorted([i for i in os.listdir(hyper_params['model_name_or_path']) if i.startswith('checkpoint')])[::-1][0]
         logger.info(f'converting fairseq model `{pretrained_checkpoint_name}` to pytorch model...')
         logger.info(f'Saving pytorch model to `{pytorch_dir_path}`...')
-        dummy_file = os.path.join(pretrained_checkpoint_dir_path, 'model.pt')
-        if os.path.exists(dummy_file):
-            os.remove(dummy_file)
-        os.symlink(args.path_to_pretrained_checkpoint, dummy_file)
+        if os.path.exists(dummy_link_file_path):
+            os.remove(dummy_link_file_path)
+        os.symlink(args.path_to_pretrained_checkpoint, dummy_link_file_path)
         # shutil.copy(os.path.join(hyper_params['model_name_or_path'], model_name), os.path.join(hyper_params['model_name_or_path'], 'model.pt'))
         convert_roberta_checkpoint_to_pytorch(
             roberta_checkpoint_path=pretrained_checkpoint_dir_path,
             pytorch_dump_folder_path=hyper_params['model_name_or_path'],
-            classification_head=False
+            classification_head=False,
+            checkpoint_name=pretrained_checkpoint_name,
         )
     hyper_params['project_name'] = f'roberta_{args.masking}_{args.task}'
     hyper_params['output_dir'] = f'{args.finetune_output_dir}/{args.masking}/{args.task}/lr{hyper_params["learning_rate"]}_B{hyper_params["per_device_train_batch_size"]}_E{hyper_params["num_train_epochs"]}'
@@ -1009,12 +1011,12 @@ def save_wandb_results(output_dir, id):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='reberta glue')
-    parser.add_argument('-task', type=str, required=True)
-    parser.add_argument('-masking', type=str, required=True, choices=['mp0.15', 'mp0.4', 'mp0.5', 'seq-len', 'seq-len_0_1_0_9', 'seq-len_0_2_0_8', 'seq-len_0_3_0_7'])
-    parser.add_argument('-path_to_pretrained_checkpoint', type=str, required=True)
-    parser.add_argument('-finetune_config_dir', type=str, required=True)
-    parser.add_argument('-finetune_output_dir', type=str, required=True)
-    parser.add_argument('-overwrite_pytorch_dir', action="store_true")
+    parser.add_argument('--task', type=str, required=True)
+    parser.add_argument('--masking', type=str, required=True, choices=['mp0.15', 'mpr009_021', 'mp0.2', 'mp0.4', 'mp0.5', 'seq-len', 'seq-len_0_1_0_9', 'seq-len_0_2_0_8', 'seq-len_0_3_0_7'])
+    parser.add_argument('--path_to_pretrained_checkpoint', type=str, required=True)
+    parser.add_argument('--finetune_config_dir', type=str, required=True)
+    parser.add_argument('--finetune_output_dir', type=str, required=True)
+    parser.add_argument('--overwrite_pytorch_dir', action="store_true")
     args = parser.parse_args()
 
     output_dir, id = main(args)
