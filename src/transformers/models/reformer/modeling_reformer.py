@@ -1479,7 +1479,9 @@ class ReformerLayer(nn.Module):
 
             # Implementation of RevNet (see Fig. 6 in https://towardsdatascience.com/illustrating-the-reformer-393575ac6ba0)
             # Y_1 = X_1 + f(X_2)
-            attn_output = prev_attn_output + attn_output
+            weight = 1 if isinstance(self.attention.self_attention, LSHSelfAttention) else 1
+            print(f"{self.attention.self_attention.__class__}: Y_1 = X_1 + f(X_2) * {weight}")
+            attn_output = prev_attn_output + attn_output * weight
 
             # free memory
             del prev_attn_output
